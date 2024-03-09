@@ -2,6 +2,8 @@ using Mirror;
 using UnityEngine;
 using TMPro;
 using GDLib.Comms;
+using GDLib.State;
+using System.Collections.Generic;
 
 public class PlayerController : NetworkBehaviour
 {
@@ -11,12 +13,9 @@ public class PlayerController : NetworkBehaviour
     [SyncVar(hook = nameof(OnColorChanged))]
     [HideInInspector] public Color playerColor = Color.white;
 
-    [Header("Cam")]
-    [SerializeField] Vector3 camOffset;
-    Camera mainCam;
-
-    [Header("Movement Mods")]
+    [Header("Modifiers")]
     [SerializeField] float speedMod = 10.0f;
+    [SerializeField] Vector3 camOffset;
 
     [Header("Managed")]
     [SerializeField] SpriteRenderer spriteRenderer;
@@ -25,6 +24,19 @@ public class PlayerController : NetworkBehaviour
 
     [Header("Dependencies")]
     private MessageBroker msgBroker;
+    private Camera mainCam;
+
+    [Header("Data")]
+    [SerializeField] PlayerData playerData;
+
+    [Header("Working / Deltas")]
+    float currentHealth;
+    float idleCounter = 0.0f;
+    float cooldownCounter = 0.0f;
+
+    FSM fsm;
+    VirtualInput vInput;
+    Dictionary<string, object> blackboard;
 
     #region NETWORKED
     // Send player info to server to update SyncVars for other clients
@@ -51,11 +63,32 @@ public class PlayerController : NetworkBehaviour
     #region LOCAL
     private void Awake()
     {
+        // Get dependencies
         if (ServiceLocator.RequestService(ServiceLibrary.MessageBroker, out IService outService))
             msgBroker = (MessageBroker)outService;
 
         mainCam = Camera.main;
+
+        // Update managed resources
         floatingInfo.transform.localScale = new Vector3(0.1f, 0.1f, 0.1f);
+
+        vInput = new VirtualInput();
+
+        // Populate the blackboard
+        blackboard = new Dictionary<string, object>()
+        {
+            {"messageBroker", msgBroker },
+            { "currentHealth", currentHealth },
+            {"maxHealth", playerData.MaxHealth },
+            {"maxPower", playerData.MaxPower },
+            {"idleTimeMax", playerData.IdleTimeMax },
+            {"thisTransform", this.transform },
+            {"virtualInput", vInput },
+            {"spriteRenderer", spriteRenderer }
+        };
+
+        fsm = new FSM();
+        fsm.SetState(new PlayerState_Idle(fsm), blackboard);
     }
 
     public override void OnStartLocalPlayer()
@@ -73,20 +106,19 @@ public class PlayerController : NetworkBehaviour
         msgBroker.SendMessage(new MSG_ClientConnected(MessageLibrary.ClientConnected, name));
     }
 
-    private void Update()
+    private void GetInput()
     {
-        if (!isLocalPlayer)
-            return;
-
-        Vector2 move = new Vector2
+        vInput.move = new Vector2
         {
             x = Input.GetAxis("Horizontal"),
             y = Input.GetAxis("Vertical")
         };
+    }
 
-        move *= speedMod * Time.deltaTime;
-
-        transform.Translate(move);
+    private void Update()
+    {
+        if (!isLocalPlayer)
+            return;
     }
     #endregion LOCAL
 }

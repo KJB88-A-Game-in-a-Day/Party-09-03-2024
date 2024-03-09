@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace GDLib.State
 {
     /// <summary>
@@ -10,9 +12,9 @@ namespace GDLib.State
         public State(FSM fsm)
             => this.fsm = fsm;
 
-        public abstract void OnStateEntry(Blackboard blackboard);
-        public abstract void OnStateExit(Blackboard blackboard);
+        public abstract void OnStateEntry(Dictionary<string, object> blackboard);
+        public abstract void OnStateExit(Dictionary<string, object> blackboard);
 
-        public abstract void UpdateState(Blackboard blackboard);
+        public abstract void UpdateState(Dictionary<string, object> blackboard);
     }
 }

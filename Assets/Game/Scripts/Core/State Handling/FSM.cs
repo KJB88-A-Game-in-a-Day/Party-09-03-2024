@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace GDLib.State
 {
     /// <summary>
@@ -7,17 +9,11 @@ namespace GDLib.State
     /// </summary>
     public class FSM
     {
-        private readonly Blackboard blackboard;
-        protected Blackboard Blackboard => blackboard;
         protected State currentState;
 
-        public FSM(State state, Blackboard blackboard)
-        {
-            this.blackboard = blackboard;
-            SetState(state);
-        }
+        public FSM() { }
 
-        public void SetState(State state)
+        public void SetState(State state, Dictionary<string, object> blackboard)
         {
             currentState.OnStateExit(blackboard);
 
@@ -25,6 +21,7 @@ namespace GDLib.State
             currentState.OnStateEntry(blackboard);
         }
 
-        public void UpdateFSM() => currentState?.UpdateState(blackboard);
+        public void UpdateFSM(Dictionary<string, object> blackboard)
+            => currentState?.UpdateState(blackboard);
     };
 }
