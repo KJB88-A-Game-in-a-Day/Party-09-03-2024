@@ -14,29 +14,23 @@ public class PlayerController : NetworkBehaviour
     [HideInInspector] public Color playerColor = Color.white;
 
     [Header("Modifiers")]
-    [SerializeField] float speedMod = 10.0f;
     [SerializeField] Vector3 camOffset;
 
     [Header("Managed")]
+    [SerializeField] Rigidbody2D rigidbody2D;
     [SerializeField] SpriteRenderer spriteRenderer;
     [SerializeField] TMP_Text playerNameText;
     [SerializeField] GameObject floatingInfo;
+    [SerializeField] SpriteRenderer emotionDisplay;
 
     [Header("Dependencies")]
     private MessageBroker msgBroker;
     private Camera mainCam;
+    FSM fsm;
+    Dictionary<string, object> blackboard;
 
     [Header("Data")]
     [SerializeField] PlayerData playerData;
-
-    [Header("Working / Deltas")]
-    float currentHealth;
-    float idleCounter = 0.0f;
-    float cooldownCounter = 0.0f;
-
-    FSM fsm;
-    VirtualInput vInput;
-    Dictionary<string, object> blackboard;
 
     #region NETWORKED
     // Send player info to server to update SyncVars for other clients
@@ -72,19 +66,20 @@ public class PlayerController : NetworkBehaviour
         // Update managed resources
         floatingInfo.transform.localScale = new Vector3(0.1f, 0.1f, 0.1f);
 
-        vInput = new VirtualInput();
-
         // Populate the blackboard
         blackboard = new Dictionary<string, object>()
         {
             {"messageBroker", msgBroker },
-            { "currentHealth", currentHealth },
+            { "currentHealth", playerData.MaxHealth },
             {"maxHealth", playerData.MaxHealth },
             {"maxPower", playerData.MaxPower },
-            {"idleTimeMax", playerData.IdleTimeMax },
+            //{"idleTimeMax", playerData.IdleTimeMax },
             {"thisTransform", this.transform },
-            {"virtualInput", vInput },
-            {"spriteRenderer", spriteRenderer }
+            {"spriteRenderer", spriteRenderer },
+            {"emotionDisplay", emotionDisplay },
+            {"speedMod", playerData.SpeedMod },
+            {"recoveryTime", playerData.RecoveryTime },
+            {"rigidbody2D", rigidbody2D }
         };
 
         fsm = new FSM();
@@ -93,32 +88,43 @@ public class PlayerController : NetworkBehaviour
 
     public override void OnStartLocalPlayer()
     {
-        //sceneScript.LocalPlayerScript = this;
+        // Set up follow cam
         mainCam.transform.SetParent(transform);
         mainCam.transform.localPosition = camOffset;
 
+        // Update player context info
         floatingInfo.transform.localPosition = new Vector3(0.0f, 1.0f, 0.0f);
 
+        // Assign core vars
         string name = "Player" + Random.Range(100, 999);
         Color color = new Color(Random.Range(0.0f, 1.0f), Random.Range(0.0f, 1.0f), Random.Range(0.0f, 1.0f));
         CmdSetupPlayer(name, color);
 
+        // Update status text
         msgBroker.SendMessage(new MSG_ClientConnected(MessageLibrary.ClientConnected, name));
-    }
-
-    private void GetInput()
-    {
-        vInput.move = new Vector2
-        {
-            x = Input.GetAxis("Horizontal"),
-            y = Input.GetAxis("Vertical")
-        };
     }
 
     private void Update()
     {
         if (!isLocalPlayer)
             return;
+
+        fsm.UpdateFSM(blackboard);
+    }
+
+    private void OnCollisionEnter2D(Collision2D collision)
+    {
+        
+    }
+
+    private void OnCollisionStay2D(Collision2D collision)
+    {
+        
+    }
+
+    private void OnCollisionExit2D(Collision2D collision)
+    {
+        
     }
     #endregion LOCAL
 }

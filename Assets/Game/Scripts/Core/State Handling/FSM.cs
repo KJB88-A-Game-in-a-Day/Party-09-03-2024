@@ -15,7 +15,7 @@ namespace GDLib.State
 
         public void SetState(State state, Dictionary<string, object> blackboard)
         {
-            currentState.OnStateExit(blackboard);
+           currentState?.OnStateExit(blackboard);
 
             currentState = state;
             currentState.OnStateEntry(blackboard);
