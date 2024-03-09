@@ -5,7 +5,7 @@ using GDLib.Comms;
 using GDLib.State;
 using System.Collections.Generic;
 
-public class PlayerController : NetworkBehaviour
+public class PlayerController : NetworkBehaviour, IHittable
 {
     [Header("Sync Vars")]
     [SyncVar(hook = nameof(OnNameChanged))]
@@ -17,20 +17,22 @@ public class PlayerController : NetworkBehaviour
     [SerializeField] Vector3 camOffset;
 
     [Header("Managed")]
-    [SerializeField] Rigidbody2D rigidbody2D;
     [SerializeField] SpriteRenderer spriteRenderer;
     [SerializeField] TMP_Text playerNameText;
     [SerializeField] GameObject floatingInfo;
     [SerializeField] SpriteRenderer emotionDisplay;
 
     [Header("Dependencies")]
-    private MessageBroker msgBroker;
+    private MessageBroker globalMsgBroker;
+    private MessageBroker localMsgBroker;
     private Camera mainCam;
     FSM fsm;
     Dictionary<string, object> blackboard;
+    VirtualInput virtualInput;
 
     [Header("Data")]
     [SerializeField] PlayerData playerData;
+    float currentHealth;
 
     #region NETWORKED
     // Send player info to server to update SyncVars for other clients
@@ -59,27 +61,32 @@ public class PlayerController : NetworkBehaviour
     {
         // Get dependencies
         if (ServiceLocator.RequestService(ServiceLibrary.MessageBroker, out IService outService))
-            msgBroker = (MessageBroker)outService;
+            globalMsgBroker = (MessageBroker)outService;
 
         mainCam = Camera.main;
 
         // Update managed resources
+        localMsgBroker = new MessageBroker();
         floatingInfo.transform.localScale = new Vector3(0.1f, 0.1f, 0.1f);
+        virtualInput = new VirtualInput();
+        currentHealth = playerData.MaxHealth;
 
         // Populate the blackboard
         blackboard = new Dictionary<string, object>()
         {
-            {"messageBroker", msgBroker },
-            { "currentHealth", playerData.MaxHealth },
-            {"maxHealth", playerData.MaxHealth },
+            { "currentHealth", currentHealth },
             {"maxPower", playerData.MaxPower },
-            //{"idleTimeMax", playerData.IdleTimeMax },
+            {"bumpedTimeMax", playerData.BumpedTimeMax },
+            {"dizzyTimeMax", playerData.DizzyTimeMax },
+            {"speedMod", playerData.SpeedMod },
+            {"thrustPower", playerData.ThrustPower },
+            {"thrustStep", playerData.ThrustStep },
+
             {"thisTransform", this.transform },
             {"spriteRenderer", spriteRenderer },
             {"emotionDisplay", emotionDisplay },
-            {"speedMod", playerData.SpeedMod },
-            {"recoveryTime", playerData.RecoveryTime },
-            {"rigidbody2D", rigidbody2D }
+            {"localMsgBroker", localMsgBroker },
+            {"virtualInput", virtualInput }
         };
 
         fsm = new FSM();
@@ -101,7 +108,7 @@ public class PlayerController : NetworkBehaviour
         CmdSetupPlayer(name, color);
 
         // Update status text
-        msgBroker.SendMessage(new MSG_ClientConnected(MessageLibrary.ClientConnected, name));
+        globalMsgBroker.SendMessage(new MSG_ClientConnected(MessageLibrary.ClientConnected, name));
     }
 
     private void Update()
@@ -109,22 +116,26 @@ public class PlayerController : NetworkBehaviour
         if (!isLocalPlayer)
             return;
 
+        float x = Input.GetAxis("Horizontal");
+        float y = Input.GetAxis("Vertical");
+        virtualInput.inputAxisVector = new Vector2(x, y);
+
         fsm.UpdateFSM(blackboard);
     }
 
-    private void OnCollisionEnter2D(Collision2D collision)
+    private void OnTriggerEnter2D(Collider2D collision)
     {
-        
+        if (collision.gameObject.CompareTag("Player"))
+            localMsgBroker.SendMessage(new MSG_Collision2D(MessageLibrary.Collision2DEvent, MSG_Collision2D.COLL_TYPE.ENTER, collision));
     }
 
-    private void OnCollisionStay2D(Collision2D collision)
+    private void OnTriggerExit2D(Collider2D collision)
     {
-        
+        if (collision.gameObject.CompareTag("Player"))
+            localMsgBroker.SendMessage(new MSG_Collision2D(MessageLibrary.Collision2DEvent, MSG_Collision2D.COLL_TYPE.EXIT, collision));
     }
 
-    private void OnCollisionExit2D(Collision2D collision)
-    {
-        
-    }
+    public void OnHit(int damage)
+        => currentHealth--;
     #endregion LOCAL
 }

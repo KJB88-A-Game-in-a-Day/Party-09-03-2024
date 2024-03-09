@@ -12,7 +12,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 49d0270a5b24fe24a8501e0812143d56, type: 3}
   m_Name: PrimaryPlayerData
   m_EditorClassIdentifier: 
-  health: 3
-  powerMax: 10
-  cooldownTime: 2.5
-  antiIdleTime: 5
+  maxHealth: 3
+  maxPower: 1
+  speedMod: 20
+  cooldownTimeMax: 2.5
+  recoveryTime: 0.5
+  thrustPower: 6
+  thrustStep: 0.05
