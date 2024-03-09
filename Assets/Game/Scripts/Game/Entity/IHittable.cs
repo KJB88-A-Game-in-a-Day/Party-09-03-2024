@@ -1,4 +1,4 @@
 public interface IHittable
 {
-    public void OnHit(int damage);
+    public bool OnHit(int damage);
 }

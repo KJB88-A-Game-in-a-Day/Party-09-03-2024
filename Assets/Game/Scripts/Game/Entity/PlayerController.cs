@@ -4,6 +4,7 @@ using TMPro;
 using GDLib.Comms;
 using GDLib.State;
 using System.Collections.Generic;
+using Unity.VisualScripting;
 
 public class PlayerController : NetworkBehaviour, IHittable
 {
@@ -32,6 +33,7 @@ public class PlayerController : NetworkBehaviour, IHittable
 
     [Header("Data")]
     [SerializeField] PlayerData playerData;
+
     float currentHealth;
 
     #region NETWORKED
@@ -64,7 +66,6 @@ public class PlayerController : NetworkBehaviour, IHittable
             globalMsgBroker = (MessageBroker)outService;
 
         mainCam = Camera.main;
-
         // Update managed resources
         localMsgBroker = new MessageBroker();
         floatingInfo.transform.localScale = new Vector3(0.1f, 0.1f, 0.1f);
@@ -82,6 +83,7 @@ public class PlayerController : NetworkBehaviour, IHittable
             {"thrustPower", playerData.ThrustPower },
             {"thrustStep", playerData.ThrustStep },
 
+            {"currentLayer", gameObject.layer },
             {"thisTransform", this.transform },
             {"spriteRenderer", spriteRenderer },
             {"emotionDisplay", emotionDisplay },
@@ -126,16 +128,39 @@ public class PlayerController : NetworkBehaviour, IHittable
     private void OnTriggerEnter2D(Collider2D collision)
     {
         if (collision.gameObject.CompareTag("Player"))
-            localMsgBroker.SendMessage(new MSG_Collision2D(MessageLibrary.Collision2DEvent, MSG_Collision2D.COLL_TYPE.ENTER, collision));
+            localMsgBroker.SendMessage(
+                new MSG_Collision2D(
+                    MessageLibrary.Collision2DEvent, 
+                    MSG_Collision2D.COLL_TYPE.ENTER, 
+                    collision
+                    ));
     }
 
     private void OnTriggerExit2D(Collider2D collision)
     {
         if (collision.gameObject.CompareTag("Player"))
-            localMsgBroker.SendMessage(new MSG_Collision2D(MessageLibrary.Collision2DEvent, MSG_Collision2D.COLL_TYPE.EXIT, collision));
+            localMsgBroker.SendMessage(
+                new MSG_Collision2D(
+                    MessageLibrary.Collision2DEvent,
+                    MSG_Collision2D.COLL_TYPE.EXIT,
+                    collision
+                    ));
     }
 
-    public void OnHit(int damage)
-        => currentHealth--;
+    public bool OnHit(int damage)
+    {
+        if (gameObject.layer != LayerMask.NameToLayer("Hurtable"))
+            return false;
+
+        currentHealth--;
+
+        if (blackboard.ContainsKey("currentHealth"))
+            blackboard["currentHealth"] = currentHealth;
+        else
+            blackboard.Add("currentHealth", currentHealth);
+
+        fsm.SetState(new PlayerState_Bumped(fsm), blackboard);
+        return true;
+    }
     #endregion LOCAL
 }

@@ -11,6 +11,7 @@ public class PlayerState_Dizzy : State, ISubscriber
     SpriteRenderer emotionDisplay;
 
     float dizzyCounter = 0.0f;
+    MessageBroker localMsgBroker;
 
     Dictionary<string, object> blackboard;
     public PlayerState_Dizzy(FSM fsm) : base(fsm) { }
@@ -30,6 +31,11 @@ public class PlayerState_Dizzy : State, ISubscriber
 
         if (blackboard.TryGetValue("emotionDisplay", out  obj))
             emotionDisplay = (SpriteRenderer)obj;
+
+        if (blackboard.TryGetValue("localMsgBroker", out obj))
+            localMsgBroker = (MessageBroker)obj;
+
+        localMsgBroker.RegisterSubscriber(MessageLibrary.Collision2DEvent, this);
 
         emotionDisplay.enabled = true;
         emotionDisplay.sprite = emotionLib.Dizzy;

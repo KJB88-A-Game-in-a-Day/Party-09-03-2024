@@ -14,8 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   maxHealth: 3
   maxPower: 1
-  speedMod: 20
-  cooldownTimeMax: 2.5
-  recoveryTime: 0.5
+  speedMod: 10
+  dizzyTimeMax: 2
+  bumpedTimeMax: 1
   thrustPower: 6
   thrustStep: 0.05

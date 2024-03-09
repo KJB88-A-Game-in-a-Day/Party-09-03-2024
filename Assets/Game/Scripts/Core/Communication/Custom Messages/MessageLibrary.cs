@@ -1,10 +1,12 @@
 ﻿public static class MessageLibrary
 {
     private readonly static string clientConnected = "clientConnected";
-    public static string ClientConnected => clientConnected.ToLower();
-
     private readonly static string statusUpdated = "statusUpdated";
-    public  static string StatusUpdated => statusUpdated.ToLower();
     private readonly static string collision2DEvent = "collision2DEvent";
+    private readonly static string onHit = "onHit";
+
+    public static string ClientConnected => clientConnected.ToLower();
+    public  static string StatusUpdated => statusUpdated.ToLower();
     public static string Collision2DEvent => collision2DEvent.ToLower();
+    public static string OnHit => onHit.ToLower();
 }

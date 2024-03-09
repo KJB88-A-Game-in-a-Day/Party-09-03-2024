@@ -6,10 +6,14 @@ using UnityEngine;
 public class PlayerState_Idle : State, ISubscriber
 {
     float speedMod;
-    Transform thisTransform;
-    Dictionary<string, object> blackboard;
-    VirtualInput input;
+    int currentHealth;
+    int currentLayer;
 
+    Transform thisTransform;
+    VirtualInput input;
+    MessageBroker localMsgBroker;
+
+    Dictionary<string, object> blackboard;
     public PlayerState_Idle(FSM fsm) : base(fsm) { }
 
     public override void OnStateEntry(Dictionary<string, object> blackboard)
@@ -24,8 +28,22 @@ public class PlayerState_Idle : State, ISubscriber
         if (blackboard.TryGetValue("thisTransform", out obj))
             thisTransform = (Transform)obj;
 
+        if (blackboard.TryGetValue("currentLAyer", out obj))
+            currentLayer = (int)obj;
+
         if (blackboard.TryGetValue("virtualInput", out obj))
             input = (VirtualInput)obj;
+
+        if (blackboard.TryGetValue("currentHealth", out obj))
+            currentHealth = (int)obj;
+
+        if (blackboard.TryGetValue("localMsgBroker", out obj))
+            localMsgBroker = (MessageBroker)obj;
+
+        currentLayer = LayerMask.NameToLayer("Hurtable");
+
+        localMsgBroker.RegisterSubscriber(MessageLibrary.Collision2DEvent, this);
+        localMsgBroker.RegisterSubscriber(MessageLibrary.OnHit, this);
     }
 
     public override void OnStateExit(Dictionary<string, object> blackboard) { }
@@ -46,10 +64,25 @@ public class PlayerState_Idle : State, ISubscriber
             MSG_Collision2D coll = (MSG_Collision2D)msg;
             if (coll.collisionType == MSG_Collision2D.COLL_TYPE.ENTER)
             {
-                fsm.SetState(new PlayerState_Bumped(fsm), blackboard);
-                return true;
+                if (currentLayer == LayerMask.NameToLayer("Hurtable"))
+                {
+                    fsm.SetState(new PlayerState_Bumped(fsm), blackboard);
+                    return true;
+                }
             }
         }
+        //else if (msg.MessageType == MessageLibrary.OnHit)
+        //{
+        //    MSG_OnHit oh = (MSG_OnHit)msg;
+        //    currentHealth--;
+
+        //    if (blackboard.ContainsKey("currentHealth"))
+        //        blackboard["currentHealth"] = currentHealth;
+        //    else
+        //        blackboard.Add("currentHealth", currentHealth);
+
+        //    return true;
+        //}
 
         return false;
     }
