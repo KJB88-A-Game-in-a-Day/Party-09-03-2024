@@ -7,8 +7,9 @@ public class PlayerState_Bumped : State
 {
     EmotionLibrary emotionLib;
     SpriteRenderer emotionDisplay;
+    GameObject thisGameObject;
+
     float bumpedTimeMax;
-    int currentLayer;
 
     float bumpedCounter = 0.0f;
 
@@ -27,13 +28,13 @@ public class PlayerState_Bumped : State
         if (blackboard.TryGetValue("emotionDisplay", out obj))
             emotionDisplay = (SpriteRenderer)obj;
 
-        if (blackboard.TryGetValue("currentLayer", out obj))
-            currentLayer = (int)obj;
+        if (blackboard.TryGetValue("thisGameObject", out obj))
+            thisGameObject = (GameObject)obj;
 
         emotionDisplay.enabled = true;
         emotionDisplay.sprite = emotionLib.Bumped;
 
-        currentLayer = LayerMask.NameToLayer("NoHurt");
+        thisGameObject.layer = LayerMask.NameToLayer("NoHurt");
     }
 
     public override void OnStateExit(Dictionary<string, object> blackboard)
@@ -41,6 +42,7 @@ public class PlayerState_Bumped : State
 
     public override void UpdateState(Dictionary<string, object> blackboard)
     {
+        Debug.Log("UPDATING!");
         if (bumpedCounter >= bumpedTimeMax)
             fsm.SetState(new PlayerState_Idle(fsm), blackboard);
 

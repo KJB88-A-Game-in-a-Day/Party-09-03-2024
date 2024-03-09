@@ -13,15 +13,19 @@ public class PlayerState_InFlight : State, ISubscriber
 
     int maxPower;
 
+    int currentLayer;
+
     SpriteRenderer emotionDisplay;
     EmotionLibrary emotionLib;
     Transform thisTransform;
     VirtualInput input;
     MessageBroker localMsgBroker;
-    Dictionary<string, object> blackboard;
+    GameObject thisGameObject;
 
     Vector3 lockedInput = Vector2.zero;
     Vector3 lockedDest;
+
+    Dictionary<string, object> blackboard;
 
     public PlayerState_InFlight(FSM fsm) : base(fsm) { }
 
@@ -55,7 +59,11 @@ public class PlayerState_InFlight : State, ISubscriber
         if (blackboard.TryGetValue("virtualInput", out obj))
             input = (VirtualInput)obj;
 
-        localMsgBroker.RegisterSubscriber(MessageLibrary.Collision2DEvent, this);
+        if (blackboard.TryGetValue("thisGameObject", out obj))
+            thisGameObject = (GameObject)obj;
+
+
+        localMsgBroker.RegisterSubscriber(MessageLibrary.CollisionEvent, this);
 
         emotionDisplay.enabled = true;
         emotionDisplay.sprite = emotionLib.Preparing;
@@ -64,11 +72,15 @@ public class PlayerState_InFlight : State, ISubscriber
         Vector3 dir = (thisTransform.position - thisTransform.position + (lockedInput.normalized * thrustPower)).normalized;
         lockedDest = thisTransform.position + (dir * thrustPower);
 
+        thisGameObject.layer = LayerMask.NameToLayer("Attacking");
         thrusting = true;
     }
 
     public override void OnStateExit(Dictionary<string, object> blackboard)
-        => emotionDisplay.enabled = false;
+    {
+        emotionDisplay.enabled = false;
+        localMsgBroker.RemoveSubscriber(MessageLibrary.CollisionEvent, this);
+    }
 
     public override void UpdateState(Dictionary<string, object> blackboard)
     {
@@ -86,17 +98,17 @@ public class PlayerState_InFlight : State, ISubscriber
 
     public bool Receive(Message msg)
     {
-        if (msg.MessageType != MessageLibrary.Collision2DEvent)
-            return false;
+        if (msg.MessageType == MessageLibrary.CollisionEvent)
+        {
+            MSG_Collision2D c2d = (MSG_Collision2D)msg;
 
-        MSG_Collision2D c2d = (MSG_Collision2D)msg;
-        if (c2d.collisionType != MSG_Collision2D.COLL_TYPE.ENTER)
-            return false;
+            IHittable hittable = c2d.collider.GetComponent<IHittable>();
+            hittable.OnHit(maxPower);
 
-        IHittable hittable = c2d.collider.GetComponent<IHittable>();
-        hittable.OnHit(maxPower);
+            fsm.SetState(new PlayerState_Dizzy(fsm), blackboard);
+            return true;
+        }
 
-        fsm.SetState(new PlayerState_Dizzy(fsm), blackboard);
-        return true;
+        return false;
     }
 }

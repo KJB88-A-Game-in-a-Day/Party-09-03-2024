@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using UnityEngine;
 
 namespace GDLib.State
 {
@@ -22,6 +23,8 @@ namespace GDLib.State
         }
 
         public void UpdateFSM(Dictionary<string, object> blackboard)
-            => currentState?.UpdateState(blackboard);
+        {
+            currentState?.UpdateState(blackboard);
+        }
     };
 }

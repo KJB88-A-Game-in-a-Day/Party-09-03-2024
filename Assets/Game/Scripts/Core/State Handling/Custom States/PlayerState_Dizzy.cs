@@ -7,11 +7,13 @@ using UnityEngine;
 public class PlayerState_Dizzy : State, ISubscriber
 {
     float dizzyTimeMax = 0;
+    float dizzyCounter = 0.0f;
+    int currentHealth;
+
     EmotionLibrary emotionLib;
     SpriteRenderer emotionDisplay;
-
-    float dizzyCounter = 0.0f;
     MessageBroker localMsgBroker;
+    GameObject thisGameObject;
 
     Dictionary<string, object> blackboard;
     public PlayerState_Dizzy(FSM fsm) : base(fsm) { }
@@ -26,23 +28,36 @@ public class PlayerState_Dizzy : State, ISubscriber
             emotionLib = (EmotionLibrary)service;
 
         object obj;
-        if (blackboard.TryGetValue("dizzyTimeMax", out  obj))
+        if (blackboard.TryGetValue("dizzyTimeMax", out obj))
             dizzyTimeMax = (float)obj;
 
-        if (blackboard.TryGetValue("emotionDisplay", out  obj))
+        if (blackboard.TryGetValue("emotionDisplay", out obj))
             emotionDisplay = (SpriteRenderer)obj;
 
         if (blackboard.TryGetValue("localMsgBroker", out obj))
             localMsgBroker = (MessageBroker)obj;
 
-        localMsgBroker.RegisterSubscriber(MessageLibrary.Collision2DEvent, this);
+        if (blackboard.TryGetValue("thisGameObject", out obj))
+            thisGameObject = (GameObject)obj;
+
+        if (blackboard.TryGetValue("currentHealth", out obj))
+            currentHealth = (int)obj;
+
+        thisGameObject.layer = LayerMask.NameToLayer("Hurtable");
+
+        localMsgBroker.RegisterSubscriber(MessageLibrary.CollisionEvent, this);
+
 
         emotionDisplay.enabled = true;
         emotionDisplay.sprite = emotionLib.Dizzy;
     }
 
     public override void OnStateExit(Dictionary<string, object> blackboard)
-        => emotionDisplay.enabled = false;
+    {
+        emotionDisplay.enabled = false;
+        localMsgBroker.RemoveSubscriber(MessageLibrary.CollisionEvent, this);
+        localMsgBroker.RemoveSubscriber(MessageLibrary.OnHit, this);
+    }
 
     public override void UpdateState(Dictionary<string, object> blackboard)
     {
@@ -54,14 +69,24 @@ public class PlayerState_Dizzy : State, ISubscriber
 
     public bool Receive(Message msg)
     {
-        if (msg.MessageType == MessageLibrary.Collision2DEvent)
+        if (msg.MessageType == MessageLibrary.CollisionEvent)
         {
-            MSG_Collision2D coll = (MSG_Collision2D)msg;
-            if (coll.collisionType == MSG_Collision2D.COLL_TYPE.ENTER)
-            {
-                fsm.SetState(new PlayerState_Bumped(fsm), blackboard);
-                return true;
-            }
+            fsm.SetState(new PlayerState_Bumped(fsm), blackboard);
+            return true;
+        }
+        else if (msg.MessageType == MessageLibrary.OnHit)
+        {
+            MSG_OnHit oh = (MSG_OnHit)msg;
+            currentHealth -= oh.damage;
+            Debug.Log(currentHealth);
+
+            if (blackboard.ContainsKey("currentHealth"))
+                blackboard["currentHealth"] = currentHealth;
+            else
+                blackboard.Add("currentHealth", currentHealth);
+
+            fsm.SetState(new PlayerState_Bumped(fsm), blackboard);
+            return true;
         }
 
         return false;

@@ -13,6 +13,8 @@ public class PlayerController : NetworkBehaviour, IHittable
     [HideInInspector] public string playerName;
     [SyncVar(hook = nameof(OnColorChanged))]
     [HideInInspector] public Color playerColor = Color.white;
+    [SyncVar(hook = nameof(OnHealthChanged))]
+    [HideInInspector] public int currentHealth;
 
     [Header("Modifiers")]
     [SerializeField] Vector3 camOffset;
@@ -34,8 +36,6 @@ public class PlayerController : NetworkBehaviour, IHittable
     [Header("Data")]
     [SerializeField] PlayerData playerData;
 
-    float currentHealth;
-
     #region NETWORKED
     // Send player info to server to update SyncVars for other clients
     [Command]
@@ -56,6 +56,10 @@ public class PlayerController : NetworkBehaviour, IHittable
     {
         playerNameText.color = _new;
         spriteRenderer.color = _new;
+    }
+    void OnHealthChanged(int _old, int _new)
+    {
+        // STUB
     }
     #endregion SYNC VAR
     #region LOCAL
@@ -83,7 +87,7 @@ public class PlayerController : NetworkBehaviour, IHittable
             {"thrustPower", playerData.ThrustPower },
             {"thrustStep", playerData.ThrustStep },
 
-            {"currentLayer", gameObject.layer },
+            {"thisGameObject", gameObject },
             {"thisTransform", this.transform },
             {"spriteRenderer", spriteRenderer },
             {"emotionDisplay", emotionDisplay },
@@ -115,6 +119,9 @@ public class PlayerController : NetworkBehaviour, IHittable
 
     private void Update()
     {
+        //if (currentHealth == 0)
+        //    Destroy(this.gameObject);
+
         if (!isLocalPlayer)
             return;
 
@@ -128,39 +135,17 @@ public class PlayerController : NetworkBehaviour, IHittable
     private void OnTriggerEnter2D(Collider2D collision)
     {
         if (collision.gameObject.CompareTag("Player"))
+        {
             localMsgBroker.SendMessage(
                 new MSG_Collision2D(
-                    MessageLibrary.Collision2DEvent, 
-                    MSG_Collision2D.COLL_TYPE.ENTER, 
+                    MessageLibrary.CollisionEvent,
+                    MSG_Collision2D.COLL_TYPE.ENTER,
                     collision
                     ));
+        }
     }
 
-    private void OnTriggerExit2D(Collider2D collision)
-    {
-        if (collision.gameObject.CompareTag("Player"))
-            localMsgBroker.SendMessage(
-                new MSG_Collision2D(
-                    MessageLibrary.Collision2DEvent,
-                    MSG_Collision2D.COLL_TYPE.EXIT,
-                    collision
-                    ));
-    }
-
-    public bool OnHit(int damage)
-    {
-        if (gameObject.layer != LayerMask.NameToLayer("Hurtable"))
-            return false;
-
-        currentHealth--;
-
-        if (blackboard.ContainsKey("currentHealth"))
-            blackboard["currentHealth"] = currentHealth;
-        else
-            blackboard.Add("currentHealth", currentHealth);
-
-        fsm.SetState(new PlayerState_Bumped(fsm), blackboard);
-        return true;
-    }
+    public void OnHit(int damage)
+        => localMsgBroker.SendMessage(new MSG_OnHit(MessageLibrary.OnHit, damage));
     #endregion LOCAL
 }
